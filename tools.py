@@ -24,7 +24,7 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_word_doc",
-            "description": "ONLY use this to create or edit a formatted Word .docx file on disk. Do NOT use this to show content to the user.",
+            "description": "Write KNOWN content to a Word doc. NEVER use this with placeholder text. NEVER call this before deep_research for research requests — deep_research already creates its own Word doc automatically.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -54,7 +54,7 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "list_files",
-            "description": "List all files currently in the workspace.",
+            "description": "List all files currently in the workspace. If the prompt asks for what files are in the directory or what files in workspace, this should be used.",
             "parameters": {"type": "object", "properties": {}}
         }
     },
@@ -73,34 +73,7 @@ TOOL_SCHEMAS = [
             }
         }
     },
-{
-        "type": "function",
-        "function": {
-            "name": "search_web",
-            "description": "Searches the web for tutoring agencies or business info.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "The search query."}
-                },
-                "required": ["query"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "hunt_email",
-            "description": "Visits a website URL to find a contact email address.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "url": {"type": "string", "description": "The URL of the website."}
-                },
-                "required": ["url"]
-            }
-        }
-    },
+
     {
         "type": "function",
         "function": {
@@ -122,7 +95,7 @@ TOOL_SCHEMAS = [
     "type": "function",
     "function": {
         "name": "deep_research",
-        "description": "Searches Google and visits the top 3 websites to read their actual content for detailed information.",
+        "description": "Primary web research tool. Use this whenever the user asks to search/find/research a topic, especially if they ask for a Word document output.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -159,5 +132,74 @@ TOOL_SCHEMAS = [
             "required": ["filename"]
         }
     }
-}
+},
+{
+    "type": "function",
+    "function": {
+        "name": "clean_leads_csv",
+        "description": "Cleans the leads.csv file. It removes duplicates, validates email formats, and filters out rows containing specific 'junk' keywords (like 'sentry', 'select', or 'v2.9.0').",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string",
+                    "description": "The name of the CSV file to clean (default: leads.csv)"
+                },
+                "junk_keywords": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of strings that, if found in an email, should cause the row to be deleted (e.g. ['sentry', 'v2.9.0', 'ingest'])."
+                }
+            },
+            "required": []
+        }
+    }
+},
+# ADD THESE 3 ENTRIES to your TOOL_SCHEMAS list in tools.py
+
+{
+    "type": "function",
+    "function": {
+        "name": "reddit_dive",
+        "description": "Searches Reddit for a topic, dives into threads, reads real comments, and saves a Word doc with community opinions and debates.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "The topic to search Reddit for"},
+                "max_posts": {"type": "integer", "description": "How many threads to read (default: 5)"}
+            },
+            "required": ["query"]
+        }
+    }
+},
+{
+    "type": "function",
+    "function": {
+        "name": "aggregate_news",
+        "description": "Searches multiple news sources (BBC, Reuters, AP, Guardian, Al Jazeera) for a topic, compares coverage, and saves a balanced Word doc report.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "The news topic to research"},
+                "num_sources": {"type": "integer", "description": "How many sources to check (default: 3, max: 5)"}
+            },
+            "required": ["query"]
+        }
+    }
+},
+{
+    "type": "function",
+    "function": {
+        "name": "scrape_twitter",
+        "description": "Scrapes Twitter/X via Nitter (no login needed) for a topic or hashtag, analyzes sentiment and opinions, and saves a Word doc.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "The topic, hashtag, or keyword to search on Twitter"},
+                "max_tweets": {"type": "integer", "description": "Max tweets to collect (default: 30)"}
+            },
+            "required": ["query"]
+        }
+    }
+},
 ]

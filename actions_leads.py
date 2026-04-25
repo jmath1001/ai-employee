@@ -175,3 +175,84 @@ def find_tutoring_leads(city: str) -> str:
 
     except Exception as e:
         return f"Error finding leads: {e}"
+
+BLOCKED_DOMAINS = [
+    "sentry.io", "ingest.sentry.io",
+    "cloudflare.com", "amazonaws.com", "jsdelivr.net",
+    "googletagmanager.com", "google-analytics.com",
+    "hotjar.com", "intercom.io", "hubspot.com",
+    "example.com", "test.com",
+]
+
+BLOCKED_LOCAL_PARTS = [
+    "noreply", "no-reply", "donotreply", "do-not-reply",
+    "mailer", "bounce", "notifications", "support",
+    "admin", "webmaster", "postmaster", "schema",
+]
+
+def is_valid_email(email: str) -> bool:
+    if not isinstance(email, str):
+        return False
+
+    email = email.strip()
+
+    # Must match basic email shape
+    if not re.match(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$', email):
+        return False
+
+    local, domain = email.split("@", 1)
+
+    # Domain must not contain version-like segments (e.g. v2.9.0)
+    if re.search(r'v\d+\.\d+', domain):
+        return False
+
+    # Domain segments must not be pure numbers (e.g. o4504849717526528)
+    parts = domain.split(".")
+    if any(re.match(r'^\d+$', part) for part in parts):
+        return False
+
+    # Block known junk domains
+    if any(domain.endswith(bad) for bad in BLOCKED_DOMAINS):
+        return False
+
+    # Block junk local parts
+    if any(local.lower().startswith(bad) for bad in BLOCKED_LOCAL_PARTS):
+        return False
+
+    return True
+
+
+def clean_leads() -> str:
+    if not os.path.exists(CSV_PATH):
+        return "❌ leads.csv not found."
+
+    df = pd.read_csv(CSV_PATH)
+    required_columns = ["center_name", "email", "city"]
+    for col in required_columns:
+        if col not in df.columns:
+            df[col] = ""
+
+    original_count = len(df)
+
+    # Flag and remove invalid emails
+    df["_valid"] = df["email"].fillna("").apply(is_valid_email)
+    removed = df[~df["_valid"]]
+    df = df[df["_valid"]].drop(columns=["_valid"])
+
+    # Deduplicate by email
+    before_dedup = len(df)
+    df = df.drop_duplicates(subset=["email"], keep="first")
+    dupes_removed = before_dedup - len(df)
+
+    # Normalize city casing
+    df["city"] = df["city"].fillna("").astype(str).str.strip().str.title()
+
+    df.to_csv(CSV_PATH, index=False)
+
+    removed_names = ", ".join(removed["center_name"].tolist()) if not removed.empty else "none"
+    return (
+        f"✅ Cleaned leads.csv. "
+        f"{original_count} → {len(df)} rows kept. "
+        f"Removed {len(removed)} invalid emails ({removed_names}), "
+        f"{dupes_removed} duplicates."
+    )
